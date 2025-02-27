@@ -1,4 +1,4 @@
-# Default values for kubeovn.
+# Default values for kubecombo.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 global:
@@ -26,3 +26,7 @@ image:
 
 namespace: kube-system
 MASTER_NODES_LABEL: "role=master"
+
+func:
+  ENABLE_SSL_VPN: false
+  ENABLE_IPSEC_VPN: false

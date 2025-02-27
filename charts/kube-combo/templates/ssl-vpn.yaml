@@ -1,0 +1,120 @@
+{{- if .Values.func.ENABLE_SSL_VPN }}
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: self-signed-cluster-issuer
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ssl-vpn-gw-ca
+  namespace: kube-system
+spec:
+  isCA: true
+  commonName: ssl.vpn.gw.com
+  secretName: ssl-vpn-gw-ca
+  privateKey:
+    algorithm: RSA
+    size: 2048
+    encoding: PKCS1
+  usages:
+  - cert sign
+  - crl sign
+  duration: 876600h
+  renewBefore: 720h
+  issuerRef:
+    name: self-signed-cluster-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: ssl-vpn-gw-ca-issuer
+  namespace: kube-system
+spec:
+  ca:
+    secretName: ssl-vpn-gw-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ovpnsrv
+  namespace: kube-system
+spec:
+  commonName: ovpnsrv.vpn.gw.com
+  secretName: ovpnsrv
+  duration: 876600h
+  renewBefore: 720h
+  usages:
+  - server auth
+  dnsNames:
+  - ovpnsrv.vpn.gw.com
+  privateKey:
+    algorithm: RSA
+    size: 2048
+    encoding: PKCS1
+  issuerRef:
+    name: ssl-vpn-gw-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ovpncli
+  namespace: kube-system
+spec:
+  commonName: ovpncli.vpn.gw.com
+  secretName: ovpncli
+  duration: 876600h
+  renewBefore: 720h
+  usages:
+  - client auth
+  dnsNames:
+  - ovpncli.vpn.gw.com
+  privateKey:
+    algorithm: RSA
+    size: 2048
+    encoding: PKCS1
+  issuerRef:
+    name: ssl-vpn-gw-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
+---
+apiVersion: v1
+data:
+  dh.pem: "LS0tLS1CRUdJTiBESCBQQVJBTUVURVJTLS0tLS0KTUlJQkNBS0NBUUVBMEMvaVE2WmlabURTd0t6WUhRcFpaYURkVDZNeE1MbjB2VFlyMk51dlR5QnFONzlDeU03VwpsZUxPTFlLazh2WTVmVFJSbXE1dUxiZm1IQjEwUno5Ym8xYjI3MG1SOXptZ0tvbkY1TEUwdGRvZE43bU9jOG4zCnJXb2h2K3JaRDlSc2tRR0gyUExQaHRnUm9HZG41Q1Y4TXVUWXNJOXhVMktiNkExd1grbjg1eHJHRnptN1JzQWYKR0tTWWF5YzJXeUVWSWVKUEd4K0xib3VHRytZZUlWTGZEbDV0eG81Q0RxSUtoZ3Y4Qm1VVDJCWVVkdDFRcTRjcQp0Q25iYkNLc2ZlajgvR1orOEd2Qk1uRTFFUDNPLytXUGtISDFJbk4rWHRuQmo4K3R2U1Y5QTg4NzUzMFhBc05OCitzWXRlNGVvSUpCOHh5cFFmeWF5N0tKTkZ2KzRDZ2FoRHdJQkFnPT0KLS0tLS1FTkQgREggUEFSQU1FVEVSUy0tLS0tCg=="
+kind: Secret
+metadata:
+  name: ssl-vpn-dh-pem
+  namespace: kube-system
+---
+kind: VpnGw
+apiVersion: vpn-gw.kubecombo.com/v1
+metadata:
+  name: ssl-vpn
+  namespace: kube-system
+spec:
+  workloadType: static
+  cpu: "1"
+  memory: "1024M"
+  qosBandwidth: "20"
+  replicas: 2
+  selector:
+  tolerations:
+  affinity:
+  enableSslVpn: true
+  sslVpnSecret: ovpnsrv
+  dhSecret: ssl-vpn-dh-pem
+  sslVpnImage: {{ .Values.global.registry.address }}/{{ .Values.global.images.openvpn.repository }}:{{ .Values.global.images.openvpn.tag }}
+  sslVpnCipher: AES-256-GCM
+  sslVpnAuth: SHA1
+  sslVpnProto: udp
+  sslVpnSubnetCidr: 169.254.220.0/24
+  enableIpsecVpn: false
+  ipsecSecret: ""
+  ipsecVpnImage: ""
+{{- end }}
