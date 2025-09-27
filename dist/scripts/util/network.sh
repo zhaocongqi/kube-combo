@@ -105,3 +105,34 @@ get_max_supported_speed() {
 		return 0
 	fi
 }
+
+# 获取所有 provider-networks.kubeovn.io 中指定的网卡
+# get_provider_networks
+get_provider_networks() {
+	provider_networks=$(kubectl get provider-networks.kubeovn.io -o jsonpath='{range .items[*]}{.metadata.name}{" "}{end}')
+	local ret=$?
+	if [ $ret -ne 0 ]; then
+		echo "Failed to list provider-networks.kubeovn.io"
+		return 2
+	fi
+	if [ -z "$provider_networks" ]; then
+		echo "There is no provider-networks.kubeovn.io found"
+		return 1
+	fi
+
+	declare -A default_interfaces
+	for provider_network in $provider_networks; do
+		defaultInterface=$(kubectl get provider-networks.kubeovn.io "$provider_network" -o jsonpath='{.spec.defaultInterface}')
+		if [ -n "$defaultInterface" ]; then
+			default_interfaces["$defaultInterface"]=1
+		fi
+	done
+
+	result=""
+	for iface in "${!default_interfaces[@]}"; do
+		result+="$iface "
+	done
+
+	result=${result%% }
+	echo "$result"
+}
